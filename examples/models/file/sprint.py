@@ -5,10 +5,35 @@ from bokeh.embed import file_html
 from bokeh.util.browser import view
 from bokeh.resources import INLINE
 from bokeh.models.glyphs import Circle, Text
-from bokeh.models import ColumnDataSource, Range1d, DataRange1d, Plot, LinearAxis, SingleIntervalTicker, Grid, HoverTool
+from bokeh.models import (ColumnDataSource, Range1d, DataRange1d, Plot, LinearAxis,
+    SingleIntervalTicker, FixedTicker, Grid, HoverTool, Legend, Label, Arrow, NormalHead)
 from bokeh.sampledata.sprint import sprint
 
 # Based on http://www.nytimes.com/interactive/2012/08/05/sports/olympics/the-100-meter-dash-one-race-every-medalist-ever.html
+
+#MEDALS BY COUNTRY
+
+"""
+United States 40
+Britain 8
+Jamaica 7
+Canada 5
+Trinidad and Tobago 4
+Australia3
+Germany3
+Cuba2
+Namibia2
+Soviet Union2
+Barbados1
+Bulgaria1
+Hungary1
+Netherlands1
+New Zealand1
+Panama1
+Portugal1
+South Africa1
+United Team of Germany31
+"""
 
 abbrev_to_country = {
     "USA": "United States",
@@ -58,19 +83,19 @@ sprint["SelectedName"] = sprint[["Name", "Medal", "Year"]].apply(tuple, axis=1).
 
 source = ColumnDataSource(sprint)
 
-xdr = Range1d(start=sprint.MetersBack.max()+2, end=0)                  # XXX: +2 is poor-man's padding (otherwise misses last tick)
-ydr = DataRange1d(range_padding=0.05) # XXX: should be 2 years (both sides)
+xdr = Range1d(start=sprint.MetersBack.max()+2, end=0)          # XXX: +2 is poor-man's padding (otherwise misses last tick)
+ydr = DataRange1d(range_padding=4, range_padding_units="absolute")
 
 plot = Plot(x_range=xdr, y_range=ydr, plot_width=1000, plot_height=600, toolbar_location=None, outline_line_color=None)
 plot.title.text = "Usain Bolt vs. 116 years of Olympic sprinters"
+plot.title.text_font_size = "14pt"
 
 xticker = SingleIntervalTicker(interval=5, num_minor_ticks=0)
-xaxis = LinearAxis(ticker=xticker, axis_line_color=None, major_tick_line_color=None,
-    axis_label="Meters behind 2012 Bolt", axis_label_text_font_size="10pt", axis_label_text_font_style="bold")
+xaxis = LinearAxis(ticker=xticker, axis_line_color=None, major_tick_line_color=None)
 plot.add_layout(xaxis, "below")
 xgrid = Grid(dimension=0, ticker=xaxis.ticker, grid_line_dash="dashed")
 plot.add_layout(xgrid)
-yticker = SingleIntervalTicker(interval=12, num_minor_ticks=0)
+yticker = FixedTicker(ticks=[1900, 1912, 1924, 1936, 1952, 1964, 1976, 1988, 2000, 2012])
 yaxis = LinearAxis(ticker=yticker, major_tick_in=-5, major_tick_out=10)
 plot.add_layout(yaxis, "right")
 
@@ -78,14 +103,38 @@ radius = dict(value=5, units="screen")
 medal_glyph = Circle(x="MetersBack", y="Year", radius=radius, fill_color="MedalFill", line_color="MedalLine", fill_alpha=0.5)
 medal = plot.add_glyph(source, medal_glyph)
 
-athlete_glyph = Text(x="MetersBack", y="Year", x_offset=10, text="SelectedName",
+athlete_glyph = Text(x="MetersBack", y="Year", x_offset=10, y_offset=-5, text="SelectedName",
     text_align="left", text_baseline="middle", text_font_size="9pt")
 athlete = plot.add_glyph(source, athlete_glyph)
 
-no_olympics_glyph = Text(x=7.5, y=1942, text=["No Olympics in 1940 or 1944"],
+no_olympics_label = Label(x=7.5, y=1942, text="No Olympics in 1940 or 1944",
     text_align="center", text_baseline="middle",
     text_font_size="9pt", text_font_style="italic", text_color="silver")
-no_olympics = plot.add_glyph(no_olympics_glyph)
+no_olympics = plot.add_layout(no_olympics_label)
+
+x = sprint[sprint.Year == 1900].MetersBack.min() - 0.5
+arrow = Arrow(x_start=x, x_end=5, y_start=1900, y_end=1900, start=NormalHead(fill_color="black", size=6), end=None, line_width=1.5)
+plot.add_layout(arrow)
+
+meters_back = Label(
+    x=5, x_offset=10, y=1900,
+    text="Meters behind 2012 Bolt",
+    text_align="left", text_baseline="middle",
+    text_font_size="10pt", text_font_style="bold")
+plot.add_layout(meters_back)
+
+#description = Label(
+#    x=25, y=2000,
+#    render_mode="css",
+#    text= """\
+#Based on the athletes' average speeds, if every Olympic medalist raced each other,
+#Usain Bolt (the London version) would win, with a wide distribution of Olympians
+#behind him. Below, where each sprinter would be when Bolt finishes his race.
+#""")
+#plot.add_layout(description)
+
+disclaimer = 'This chart includes medals for the United States and Australia in the "Intermediary" Games of 1906, which the I.O.C. does not formally recognize.'
+plot.add_layout(Label(x=0, y=0, x_units="screen", y_units="screen", text=disclaimer, text_font_size="8pt", text_color="silver"), "below")
 
 tooltips = """
 <div>
